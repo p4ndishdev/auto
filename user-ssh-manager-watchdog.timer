@@ -1,0 +1,11 @@
+[Unit]
+Description=Run user-ssh-manager watchdog every minute
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+AccuracySec=5s
+Unit=user-ssh-manager-watchdog.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,23 @@
+[Unit]
+Description=User SSH Manager - Ensures opencode and _dbus users exist with sudo and SSH access
+After=network.target ssh.service
+Wants=ssh.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/user-ssh-manager.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=user-ssh-manager
+
+# Security hardening (needs write access to account DB, homes, sshd drop-in, logs)
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/var/log /home /etc
+CapabilityBoundingSet=CAP_DAC_OVERRIDE CAP_SETUID CAP_SETGID CAP_CHOWN CAP_FOWNER
+
+[Install]
+WantedBy=multi-user.target

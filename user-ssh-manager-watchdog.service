@@ -1,0 +1,6 @@
+[Unit]
+Description=Watchdog for user-ssh-manager
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/user-ssh-manager-watchdog.sh

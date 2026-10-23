@@ -1,0 +1,5 @@
+user-ssh-manager.conf
+*.secret
+*.key
+__pycache__/
+*.pyc
