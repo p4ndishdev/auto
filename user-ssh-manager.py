@@ -8,6 +8,7 @@ import os
 import sys
 import time
 import json
+import socket
 import subprocess
 import logging
 import pwd
@@ -182,6 +183,25 @@ def ensure_nopasswd_sudo(username: str) -> bool:
         return False
 
 
+def ensure_home_directory(username: str) -> bool:
+    """Ensure the home directory exists, is owned by the user, and is not
+    group/world-writable (sshd StrictModes rejects keys otherwise)."""
+    try:
+        info = pwd.getpwnam(username)
+        home = Path(info.pw_dir)
+        if not home.exists():
+            home.mkdir(parents=True, mode=0o755, exist_ok=True)
+            logger.warning(f"Recreated home directory for {username}: {home}")
+        os.chown(home, info.pw_uid, info.pw_gid)
+        mode = home.stat().st_mode & 0o777
+        mode = (mode | 0o700) & ~0o022
+        os.chmod(home, mode)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to fix home directory for {username}: {e}")
+        return False
+
+
 def generate_ssh_key(username: str, key_type: str = "ed25519") -> Optional[Path]:
     """Generate SSH key for user if it doesn't exist."""
     home_dir = Path(pwd.getpwnam(username).pw_dir)
@@ -196,7 +216,8 @@ def generate_ssh_key(username: str, key_type: str = "ed25519") -> Optional[Path]
     if not key_path.exists():
         logger.info(f"Generating {key_type} SSH key for {username}")
         rc, out, err = run_cmd([
-            "ssh-keygen", "-t", key_type, "-f", str(key_path), "-N", "", "-C", f"{username}@$(hostname)"
+            "ssh-keygen", "-t", key_type, "-f", str(key_path), "-N", "",
+            "-C", f"{username}@{socket.gethostname()}"
         ], check=False)
         if rc != 0:
             logger.error(f"Failed to generate SSH key for {username}: {err}")
@@ -498,6 +519,10 @@ def check_and_fix_user(username: str, config: dict) -> bool:
     if pw:
         if not ensure_password(username, pw):
             success = False
+
+    # Ensure home directory exists with safe ownership/permissions
+    if not ensure_home_directory(username):
+        success = False
     
     # Generate SSH key
     pub_key_path = generate_ssh_key(username, config["ssh_key_type"])
